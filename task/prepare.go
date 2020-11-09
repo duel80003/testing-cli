@@ -166,4 +166,6 @@ func PrepareData() {
 	prepareTestingData()
 	message := "Client: " + yellow(strings.ToUpper(client)) + ", Test WorkFlow: " + yellow(workflow)
 	printer.Info(message)
+	message = "Country: " + yellow(strings.ToUpper(country))
+	printer.Info(message)
 }

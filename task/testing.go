@@ -38,6 +38,7 @@ func (t *Testing) Start() {
 	printer.Info("Test Start")
 	printer.Divider()
 	t.startTestProcess()
+	printer.Info("Test End")
 }
 
 //RequestBody sms request body

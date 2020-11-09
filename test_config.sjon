@@ -1,0 +1,20 @@
+{   
+    "requestInterval": 600,
+    "contexts": [],
+    "contextsMapping": {
+        "en": "1",
+        "es": "2",
+        "fr": "2"
+    },
+    "translation": {
+        "en": {
+            "yes": "yes",
+            "no": "no"
+        },
+        "fr": {
+            "yes": "oui",
+            "no": "non"
+        }
+    }   
+    
+}

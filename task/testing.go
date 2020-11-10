@@ -15,7 +15,7 @@ type xmlResponse struct {
 }
 
 type xmlMediaResponse struct {
-	mediaXML `xml:"Message"`
+	Message mediaXML `xml:"Message"`
 }
 
 type mediaXML struct {
@@ -61,7 +61,7 @@ func (t *Testing) mmsRequestBody() []byte {
 		"To":                "test",
 		"Body":              "",
 		"FromState":         "FL",
-		"NumMedis":          "1",
+		"NumMedia":          "1",
 		"MediaUrl0":         t.mediaURL0,
 		"MediaContentType0": "jpg",
 	})
@@ -100,12 +100,12 @@ func (t *Testing) processingResponse(body []byte) {
 	} else {
 		responseXML := &xmlMediaResponse{}
 		_ = xml.Unmarshal(body, &responseXML)
-		if responseXML.Body == "" {
+		if responseXML.Message.Body == "" {
 			printer.ShowQuestion("Dialogflow timeout, empty message")
 		} else {
-			printer.ShowQuestion(responseXML.Body)
+			printer.ShowQuestion(responseXML.Message.Body)
 		}
-		for _, url := range responseXML.Media {
+		for _, url := range responseXML.Message.Media {
 			yellow := printer.ColorInstance("yellow").SprintFunc()
 			magenta := printer.ColorInstance("magenta")
 			magenta.Printf("%-18s%s \n", "Media URL:", yellow(url))

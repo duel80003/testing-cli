@@ -27,6 +27,7 @@ var (
 )
 var (
 	yellow = printer.ColorInstance("yellow").SprintFunc()
+	white  = printer.ColorInstance("white").SprintFunc()
 )
 
 type langTranslation map[string]string
@@ -164,7 +165,7 @@ func PrepareData() {
 	readConfig()
 	readOriginalJSONData()
 	prepareTestingData()
-	message := "Client: " + yellow(strings.ToUpper(client)) + ", Test WorkFlow: " + yellow(workflow)
+	message := "Client: " + yellow(strings.ToUpper(client)) + white(", Test WorkFlow: ") + yellow(workflow)
 	printer.Info(message)
 	message = "Country: " + yellow(strings.ToUpper(country))
 	printer.Info(message)

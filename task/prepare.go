@@ -102,12 +102,9 @@ func checkOptions() {
 	}
 }
 func setDefaultContext() {
-	if c.ContextsMapping[language] != "" {
-		defaultContext["lang"] = c.ContextsMapping[language]
-	}
 	defaultContext["image"] = sendingImage
 	for _, v := range c.Contexts {
-		defaultContext[v] = c.ContextsMapping[v]
+		defaultContext[v] = c.ContextsMapping[fmt.Sprint(v, "_", language)]
 	}
 	lang := c.Translation[language]
 	for k, v := range lang {
@@ -169,4 +166,5 @@ func PrepareData() {
 	printer.Info(message)
 	message = "Country: " + yellow(strings.ToUpper(country))
 	printer.Info(message)
+	fmt.Println("aaa", testingData.answers)
 }

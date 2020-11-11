@@ -1,10 +1,10 @@
 {   
     "requestInterval": 600,
-    "contexts": [],
+    "contexts": ["lang"],
     "contextsMapping": {
-        "en": "1",
-        "es": "2",
-        "fr": "2"
+        "lang_en": "1",
+        "lang_es": "2",
+        "lang_fr": "2"
     },
     "translation": {
         "en": {

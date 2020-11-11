@@ -166,5 +166,4 @@ func PrepareData() {
 	printer.Info(message)
 	message = "Country: " + yellow(strings.ToUpper(country))
 	printer.Info(message)
-	fmt.Println("aaa", testingData.answers)
 }

@@ -101,7 +101,7 @@ func (t *Testing) processingResponse(body []byte) {
 		responseXML := &xmlMediaResponse{}
 		_ = xml.Unmarshal(body, &responseXML)
 		if responseXML.Message.Body == "" {
-			printer.ShowQuestion("Dialogflow timeout, empty message")
+			printer.ShowQuestion("Empty message")
 		} else {
 			printer.ShowQuestion(responseXML.Message.Body)
 		}

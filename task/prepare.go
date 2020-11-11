@@ -106,9 +106,11 @@ func setDefaultContext() {
 	for _, v := range c.Contexts {
 		defaultContext[v] = c.ContextsMapping[fmt.Sprint(v, "_", language)]
 	}
-	lang := c.Translation[language]
-	for k, v := range lang {
-		defaultContext[k] = v
+	if len(c.Translation) != 0 {
+		lang := c.Translation[language]
+		for k, v := range lang {
+			defaultContext[k] = v
+		}
 	}
 }
 
@@ -122,11 +124,6 @@ func readConfig() {
 		fmt.Println(err)
 	}
 	json.Unmarshal(data, &c)
-	if c.Translation[strings.ToLower(language)] == nil {
-		message := fmt.Sprintf("Translation for %s not provid", strings.ToLower(language))
-		printer.Error(message)
-		os.Exit(1)
-	}
 	setDefaultContext()
 }
 

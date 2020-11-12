@@ -149,7 +149,7 @@ func prepareTestingData() {
 	testingData.answers = c.parseAnswer(w)
 	testingData.from = originaldata.From
 	testingData.mediaURL0 = originaldata.MediaURL0
-	testingData.url = originaldata.URL
+	testingData.url = fmt.Sprint(originaldata.URL, "?country=", strings.ToUpper(country))
 }
 
 // PrepareData for twilio test processing

@@ -1,4 +1,6 @@
-toro_config.json
-toro.json
+*_config.json
+*.json
+!test_config.json
+!test.json
 
 twilio

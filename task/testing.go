@@ -33,8 +33,19 @@ func NewInstance() *Testing {
 	return &Testing{testingData}
 }
 
+func (t *Testing) deleteSession() {
+	url := t.url + "/delete-session&sessionId=" + t.from
+	_, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		printer.Error("Delete session failure")
+	}
+	printer.Info("Delete session success")
+
+}
+
 // Start the testing program.
 func (t *Testing) Start() {
+	t.deleteSession()
 	printer.Info("Test Start")
 	printer.Divider()
 	t.startTestProcess()

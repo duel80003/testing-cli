@@ -64,10 +64,11 @@ type originalJSONData struct {
 
 // TestingData is the testable data
 type TestingData struct {
-	mediaURL0 string
-	url       string
-	from      string
-	answers   []string
+	mediaURL0   string
+	url         string
+	from        string
+	answers     []string
+	originalURL string
 }
 
 func (data originalJSONData) getWorkflow() []string {
@@ -149,6 +150,7 @@ func prepareTestingData() {
 	testingData.answers = c.parseAnswer(w)
 	testingData.from = originaldata.From
 	testingData.mediaURL0 = originaldata.MediaURL0
+	testingData.originalURL = originaldata.URL
 	testingData.url = fmt.Sprint(originaldata.URL, "?country=", strings.ToUpper(country))
 }
 

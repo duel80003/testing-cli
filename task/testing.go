@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"time"
 	"twilio-cli/printer"
 )
@@ -34,13 +35,30 @@ func NewInstance() *Testing {
 }
 
 func (t *Testing) deleteSession() {
-	url := t.url + "/delete-session&sessionId=" + t.from
-	_, err := http.NewRequest("DELETE", url, nil)
+	requestBody, _ := json.Marshal(map[string]string{
+		"userId": t.from,
+	})
+
+	url := t.originalURL + "/delete-session"
+	printer.Info("Delete session url: " + url)
+	req, err := http.NewRequest(http.MethodDelete, url, bytes.NewBuffer(requestBody))
+	req.Header.Add("Content-Type", "application/json")
+	client := &http.Client{}
+	res, err := client.Do(req)
 	if err != nil {
 		printer.Error("Delete session failure")
+		os.Exit(1)
 	}
-	printer.Info("Delete session success")
-
+	s := res.StatusCode
+	body, _ := ioutil.ReadAll(res.Body)
+	var result map[string]string
+	_ = json.Unmarshal(body, &result)
+	if s == 200 {
+		printer.Info("Delete session response: " + result["message"])
+	} else {
+		printer.Info("Delete session err: " + result["message"])
+	}
+	time.Sleep(3000 * time.Millisecond)
 }
 
 // Start the testing program.

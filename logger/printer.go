@@ -18,7 +18,7 @@ var printHTTPInfo = color.New(color.FgHiWhite)
 
 // Info for print info message
 func Info(s interface{}) {
-	fmt.Printf("%-15s %v \n", cyan("INFO "), white(s))
+	fmt.Printf("%-15s %+v \n", cyan("INFO "), white(s))
 }
 
 // Error for print error message

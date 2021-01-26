@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -13,7 +12,6 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-const path = "./"
 const image string = "image"
 const text string = "text"
 
@@ -99,12 +97,6 @@ var cmdRegistration = &cobra.Command{
 	},
 }
 
-func createFilePath(args []string) string {
-	fileName := ConcatString(args)
-	logger.Info("Reading config file: " + yellow(fileName))
-	return ConcatString([]string{path, fileName})
-}
-
 func findAnswersByWorkflow(flag *Flag, objectArray []gjson.Result) []gjson.Result {
 	workflow := flag.Workflow
 	for _, v := range objectArray {
@@ -114,15 +106,6 @@ func findAnswersByWorkflow(flag *Flag, objectArray []gjson.Result) []gjson.Resul
 		}
 	}
 	return nil
-}
-
-func readJSONFile(fullPath string) []byte {
-	data, err := ioutil.ReadFile(fullPath)
-	if err != nil {
-		logger.Error(ConcatString([]string{"Read file", fullPath, " failure."}))
-		os.Exit(1)
-	}
-	return data
 }
 
 func prepareTestData(flag *Flag) {
@@ -147,19 +130,13 @@ func prepareTestData(flag *Flag) {
 		logger.Error("Inexistent workflow")
 		os.Exit(1)
 	}
-	testData.answers = composeAnswersAndContext(flag, answers, configData)
+	testData.answers = translationContextMapping(flag, answers, configData)
 }
 
-func composeAnswersAndContext(flag *Flag, answers []gjson.Result, configData []byte) []string {
-	contexts := gjson.GetBytes(configData, "contexts").Array()
-	contextsMapping := gjson.GetBytes(configData, "contextsMapping").Map()
-	translation := gjson.GetBytes(configData, ConcatString([]string{"translation.", flag.Language})).Map()
-
+func translationContextMapping(flag *Flag, answers []gjson.Result, configData []byte) []string {
+	translation := gjson.GetBytes(configData, ConcatString([]string{"translation_context.", flag.Language})).Map()
 	result := make([]string, len(answers))
 	contextMap := make(map[string]string)
-	for _, v := range contexts {
-		contextMap[v.Str] = contextsMapping[ConcatString([]string{v.Str, "_", flag.Language})].Str
-	}
 	for i, v := range answers {
 		answer := v.Str
 		if contextMap[answer] != "" {

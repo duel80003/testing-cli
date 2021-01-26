@@ -1,26 +1,28 @@
 {   
     "requestInterval": 600,
-    "contexts": ["lang", "dealerNumber"],
-    "contextsMapping": {
-        "lang_en": "1",
-        "lang_es": "2",
-        "lang_fr": "2",
-        "dealerNumber_en": "3171",
-        "dealerNumber_es": "3171",
-        "dealerNumber_fr": "1007"
+    "queryString": {
+        "ca": "country=CA"
     },
-    "translation": {
+    "dialogflow": {
+        "dev": {
+            "projectId": "",
+            "type": "",
+            "client_email": "",
+            "private_key": ""
+        }
+    },
+    "translation_context": {
         "en": {
             "yes": "yes",
-            "no": "no"
+            "no": "no",
+            "dealerNumber": "11111",
+            "lang": "1"
         },
         "fr": {
             "yes": "oui",
-            "no": "non"
+            "no": "non",
+            "dealerNumber": "22222",
+            "lang": "2"
         }
-    }, 
-    "queryString": {
-        "ca": "country=CA"
     }  
-    
 }

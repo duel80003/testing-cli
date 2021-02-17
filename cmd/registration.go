@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/xml"
 	"os"
 	"strings"
 	"time"
@@ -158,40 +159,40 @@ func startTestProcess() {
 		logger.Print(err)
 	}
 	for _, v := range testData.answers {
-		var messageType string
-		if v == "image" {
-			messageType = image
+		if v == image {
 			response, err := testData.makeMMSRequest()
 			if err != nil {
 				printHTTPError(err)
 			}
-			displayResult(messageType, response)
+			displayResult(response)
 		} else {
-			messageType = text
 			response, err := testData.makeSMSRequest(v)
 			if err != nil {
 				printHTTPError(err)
 			}
-			displayResult(messageType, response)
+			displayResult(response)
 		}
 		time.Sleep(time.Duration(testData.RequestInterval) * time.Millisecond)
 	}
 }
 
-func displayResult(messageType string, response *grequests.Response) {
-	if messageType == text {
-		xmlResponse := &xmlResponse{}
-		response.XML(xmlResponse, nil)
+func displayResult(response *grequests.Response) {
+	xmlResponse := &xmlResponse{}
+	bytes := response.Bytes()
+	response.XML(xmlResponse, nil)
+
+	if xmlResponse.Message != "" {
 		logger.ShowQuestion(xmlResponse.Message)
 	} else {
-		xmlResponse := &xmlMediaResponse{}
-		response.XML(xmlResponse, nil)
-		if xmlResponse.Message.Body == "" {
+		xmlMediaResponse := &xmlMediaResponse{}
+		_ = xml.Unmarshal(bytes, &xmlMediaResponse)
+		response.ClearInternalBuffer()
+		if xmlMediaResponse.Message.Body == "" {
 			logger.ShowQuestion("Empty message")
 		} else {
-			logger.ShowQuestion(xmlResponse.Message.Body)
+			logger.ShowQuestion(xmlMediaResponse.Message.Body)
 		}
-		for _, url := range xmlResponse.Message.Media {
+		for _, url := range xmlMediaResponse.Message.Media {
 			yellow := logger.ColorInstance("yellow").SprintFunc()
 			magenta := logger.ColorInstance("magenta")
 			magenta.Printf("%-18s%s \n", "Media URL:", yellow(url))

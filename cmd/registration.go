@@ -112,7 +112,8 @@ func findAnswersByWorkflow(flag *Flag, objectArray []gjson.Result) []gjson.Resul
 func prepareTestData(flag *Flag) {
 	logger.Info("Perparing test data...")
 	clientData := readJSONFile(createFilePath([]string{flag.Client, ".json"}))
-	configData := readJSONFile(createFilePath([]string{flag.Client, "_config.json"}))
+	client := strings.Split(flag.Client, "_")
+	configData := readJSONFile(createFilePath([]string{client[0], "_config.json"}))
 
 	testData.RequestInterval = int(gjson.GetBytes(configData, "requestInterval").Num)
 	queryString := gjson.GetBytes(configData, ConcatString([]string{"queryString.", strings.ToLower(flag.Country)}))

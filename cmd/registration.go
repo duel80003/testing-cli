@@ -199,5 +199,6 @@ func displayResult(response *grequests.Response) {
 			magenta.Printf("%-18s%s \n", "Media URL:", yellow(url))
 		}
 	}
+	response.Close()
 	logger.Divider()
 }

@@ -14,7 +14,6 @@ import (
 )
 
 const image string = "image"
-const text string = "text"
 
 var yellow = logger.ColorInstance("yellow").SprintFunc()
 
@@ -92,9 +91,12 @@ var cmdRegistration = &cobra.Command{
 		logger.Info(ConcatString([]string{"Language: ", twilioFlag.Language}))
 		logger.Info(ConcatString([]string{"Country: ", twilioFlag.Country}))
 		prepareTestData(&twilioFlag)
-		startTestProcess()
+		resChan := make(chan *grequests.Response)
+		done := make(chan bool)
+		go startTestProcess(resChan, done)
+		go displayResult(resChan)
+		<-done
 		logger.Info("Test End")
-
 	},
 }
 
@@ -152,7 +154,7 @@ func translationContextMapping(flag *Flag, answers []gjson.Result, configData []
 	return result
 }
 
-func startTestProcess() {
+func startTestProcess(resChan chan<- *grequests.Response, done chan<- bool) {
 	logger.Info("Start testing...")
 	logger.Divider()
 	var printHTTPError = func(err error) {
@@ -165,40 +167,45 @@ func startTestProcess() {
 			if err != nil {
 				printHTTPError(err)
 			}
-			displayResult(response)
+			resChan <- response
 		} else {
 			response, err := testData.makeSMSRequest(v)
 			if err != nil {
 				printHTTPError(err)
 			}
-			displayResult(response)
+			resChan <- response
 		}
 		time.Sleep(time.Duration(testData.RequestInterval) * time.Millisecond)
 	}
+	done <- true
+	close(resChan)
+	close(done)
 }
 
-func displayResult(response *grequests.Response) {
-	xmlResponse := &xmlResponse{}
-	bytes := response.Bytes()
-	response.XML(xmlResponse, nil)
+func displayResult(resChan <-chan *grequests.Response) {
+	for response := range resChan {
+		xmlResponse := &xmlResponse{}
+		bytes := response.Bytes()
+		response.XML(xmlResponse, nil)
 
-	if xmlResponse.Message != "" {
-		logger.ShowQuestion(xmlResponse.Message)
-	} else {
-		xmlMediaResponse := &xmlMediaResponse{}
-		_ = xml.Unmarshal(bytes, &xmlMediaResponse)
-		response.ClearInternalBuffer()
-		if xmlMediaResponse.Message.Body == "" {
-			logger.ShowQuestion("Empty message")
+		if xmlResponse.Message != "" {
+			logger.ShowQuestion(xmlResponse.Message)
 		} else {
-			logger.ShowQuestion(xmlMediaResponse.Message.Body)
+			xmlMediaResponse := &xmlMediaResponse{}
+			_ = xml.Unmarshal(bytes, &xmlMediaResponse)
+			response.ClearInternalBuffer()
+			if xmlMediaResponse.Message.Body == "" {
+				logger.ShowQuestion("Empty message")
+			} else {
+				logger.ShowQuestion(xmlMediaResponse.Message.Body)
+			}
+			for _, url := range xmlMediaResponse.Message.Media {
+				yellow := logger.ColorInstance("yellow").SprintFunc()
+				magenta := logger.ColorInstance("magenta")
+				magenta.Printf("%-18s%s \n", "Media URL:", yellow(url))
+			}
 		}
-		for _, url := range xmlMediaResponse.Message.Media {
-			yellow := logger.ColorInstance("yellow").SprintFunc()
-			magenta := logger.ColorInstance("magenta")
-			magenta.Printf("%-18s%s \n", "Media URL:", yellow(url))
-		}
+		response.Close()
+		logger.Divider()
 	}
-	response.Close()
-	logger.Divider()
 }

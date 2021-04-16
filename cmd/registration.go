@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/xml"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -90,10 +91,11 @@ var cmdRegistration = &cobra.Command{
 		logger.Info(ConcatString([]string{"Workflow: ", twilioFlag.Workflow}))
 		logger.Info(ConcatString([]string{"Language: ", twilioFlag.Language}))
 		logger.Info(ConcatString([]string{"Country: ", twilioFlag.Country}))
-		prepareTestData(&twilioFlag)
+		start := make(chan bool)
+		go prepareTestData(&twilioFlag, start)
 		resChan := make(chan *grequests.Response)
 		done := make(chan bool)
-		go startTestProcess(resChan, done)
+		go startTestProcess(resChan, done, start)
 		go displayResult(resChan)
 		<-done
 		logger.Info("Test End")
@@ -111,7 +113,7 @@ func findAnswersByWorkflow(flag *Flag, objectArray []gjson.Result) []gjson.Resul
 	return nil
 }
 
-func prepareTestData(flag *Flag) {
+func prepareTestData(flag *Flag, start chan<- bool) {
 	logger.Info("Perparing test data...")
 	clientData := readJSONFile(createFilePath([]string{flag.Client, ".json"}))
 	client := strings.Split(flag.Client, "_")
@@ -135,6 +137,8 @@ func prepareTestData(flag *Flag) {
 		os.Exit(1)
 	}
 	testData.answers = translationContextMapping(flag, answers, configData)
+	start <- true
+	close(start)
 }
 
 func translationContextMapping(flag *Flag, answers []gjson.Result, configData []byte) []string {
@@ -154,32 +158,37 @@ func translationContextMapping(flag *Flag, answers []gjson.Result, configData []
 	return result
 }
 
-func startTestProcess(resChan chan<- *grequests.Response, done chan<- bool) {
-	logger.Info("Start testing...")
-	logger.Divider()
-	var printHTTPError = func(err error) {
-		logger.Error("Http post error")
-		logger.Print(err)
-	}
-	for _, v := range testData.answers {
-		if v == image {
-			response, err := testData.makeMMSRequest()
-			if err != nil {
-				printHTTPError(err)
+func startTestProcess(resChan chan<- *grequests.Response, done chan<- bool, start <-chan bool) {
+	for s := range start {
+		if s {
+			logger.Info("Start testing...")
+			logger.Divider()
+			var printHTTPError = func(err error) {
+				logger.Error("Http post error")
+				logger.Print(err)
 			}
-			resChan <- response
-		} else {
-			response, err := testData.makeSMSRequest(v)
-			if err != nil {
-				printHTTPError(err)
+			fmt.Println(testData.answers)
+			for _, v := range testData.answers {
+				if v == image {
+					response, err := testData.makeMMSRequest()
+					if err != nil {
+						printHTTPError(err)
+					}
+					resChan <- response
+				} else {
+					response, err := testData.makeSMSRequest(v)
+					if err != nil {
+						printHTTPError(err)
+					}
+					resChan <- response
+				}
+				time.Sleep(time.Duration(testData.RequestInterval) * time.Millisecond)
 			}
-			resChan <- response
+			done <- true
+			close(resChan)
+			close(done)
 		}
-		time.Sleep(time.Duration(testData.RequestInterval) * time.Millisecond)
 	}
-	done <- true
-	close(resChan)
-	close(done)
 }
 
 func displayResult(resChan <-chan *grequests.Response) {

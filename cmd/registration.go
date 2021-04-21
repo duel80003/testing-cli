@@ -1,8 +1,8 @@
 package cmd
 
 import (
+	"encoding/json"
 	"encoding/xml"
-	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -25,6 +25,7 @@ type TestData struct {
 	URL             string
 	answers         []string
 	RequestInterval int
+	BaseURL         string
 }
 
 func (t *TestData) smsRequestBody(answer string) map[string]string {
@@ -92,13 +93,21 @@ var cmdRegistration = &cobra.Command{
 		logger.Info(ConcatString([]string{"Language: ", twilioFlag.Language}))
 		logger.Info(ConcatString([]string{"Country: ", twilioFlag.Country}))
 		start := make(chan bool)
-		go prepareTestData(&twilioFlag, start)
-		resChan := make(chan *grequests.Response)
+		delete := make(chan bool)
 		done := make(chan bool)
+		go prepareTestData(&twilioFlag, delete)
+		go deleteSession(delete, start, done)
+		resChan := make(chan *grequests.Response)
 		go startTestProcess(resChan, done, start)
 		go displayResult(resChan)
-		<-done
-		logger.Info("Test End")
+		val, ok := <-done
+		if ok {
+			if val {
+				logger.Info("Test Success")
+			} else {
+				logger.Info("Test End")
+			}
+		}
 	},
 }
 
@@ -113,7 +122,7 @@ func findAnswersByWorkflow(flag *Flag, objectArray []gjson.Result) []gjson.Resul
 	return nil
 }
 
-func prepareTestData(flag *Flag, start chan<- bool) {
+func prepareTestData(flag *Flag, delete chan<- bool) {
 	logger.Info("Perparing test data...")
 	clientData := readJSONFile(createFilePath([]string{flag.Client, ".json"}))
 	client := strings.Split(flag.Client, "_")
@@ -130,6 +139,7 @@ func prepareTestData(flag *Flag, start chan<- bool) {
 	} else {
 		questionMark = "?"
 	}
+	testData.BaseURL = url
 	testData.URL = ConcatString([]string{url, questionMark, queryString.Str})
 	answers := findAnswersByWorkflow(flag, gjson.GetBytes(clientData, "answers").Array())
 	if answers == nil {
@@ -137,8 +147,45 @@ func prepareTestData(flag *Flag, start chan<- bool) {
 		os.Exit(1)
 	}
 	testData.answers = translationContextMapping(flag, answers, configData)
-	start <- true
-	close(start)
+	delete <- true
+	close(delete)
+}
+
+func deleteSession(delete <-chan bool, start chan<- bool, done chan<- bool) {
+	for val := range delete {
+		if val {
+			json, _ := json.Marshal(map[string]string{
+				"userId": testData.From,
+			})
+			url := testData.BaseURL + "/delete-session"
+			logger.Info("Delete session url: " + url)
+			requestBody := &grequests.RequestOptions{
+				JSON: json,
+			}
+			res, err := grequests.Delete(url, requestBody)
+			if err != nil {
+				logger.Error(url + "is unavailable")
+			}
+			type deleteRes struct {
+				Message string `json:"message"`
+			}
+			d := &deleteRes{}
+			res.JSON(d)
+			s := res.StatusCode
+			if s == 200 {
+				logger.Info("Delete session response: " + d.Message)
+				start <- true
+				close(start)
+			} else {
+				logger.Info("Delete session err: " + d.Message)
+				done <- false
+				close(start)
+				close(done)
+			}
+		} else {
+			break
+		}
+	}
 }
 
 func translationContextMapping(flag *Flag, answers []gjson.Result, configData []byte) []string {
@@ -167,7 +214,6 @@ func startTestProcess(resChan chan<- *grequests.Response, done chan<- bool, star
 				logger.Error("Http post error")
 				logger.Print(err)
 			}
-			fmt.Println(testData.answers)
 			for _, v := range testData.answers {
 				if v == image {
 					response, err := testData.makeMMSRequest()
@@ -187,6 +233,10 @@ func startTestProcess(resChan chan<- *grequests.Response, done chan<- bool, star
 			done <- true
 			close(resChan)
 			close(done)
+		} else {
+			done <- false
+			close(done)
+			break
 		}
 	}
 }

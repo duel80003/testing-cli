@@ -193,7 +193,7 @@ func translationContextMapping(flag *Flag, answers []gjson.Result, configData []
 	result := make([]string, len(answers))
 	contextMap := make(map[string]string)
 	for i, v := range answers {
-		answer := v.Str
+		answer := strings.ToLower(v.Str)
 		if contextMap[answer] != "" {
 			result[i] = contextMap[answer]
 		} else if translation[answer].Str != "" {

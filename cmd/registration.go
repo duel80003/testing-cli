@@ -100,14 +100,8 @@ var cmdRegistration = &cobra.Command{
 		resChan := make(chan *grequests.Response)
 		go startTestProcess(resChan, done, start)
 		go displayResult(resChan)
-		val, ok := <-done
-		if ok {
-			if val {
-				logger.Info("Test Success")
-			} else {
-				logger.Info("Test End")
-			}
-		}
+		<-done
+		logger.Info("Test End")
 	},
 }
 

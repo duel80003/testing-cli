@@ -47,21 +47,6 @@ func init() {
 	cmdRegistration.MarkPersistentFlagRequired("client")
 	cmdRegistration.MarkPersistentFlagRequired("workflow")
 
-	cmdDialogFlow.PersistentFlags().StringVarP(&dialogflowFlag.Client, "client", "c", "", "client for test")
-	cmdDialogFlow.PersistentFlags().StringVarP(&dialogflowFlag.Environment, "environment", "e", "dev", "dialogflow connection info by env")
-
-	cmdText.PersistentFlags().StringVarP(&dialogflowFlag.Text, "text", "t", "", "simple text to dialogflow agent")
-	cmdText.PersistentFlags().StringVarP(&dialogflowFlag.Language, "language", "l", "en", "Specify the language for test")
-	cmdText.PersistentFlags().StringVarP(&dialogflowFlag.Context, "context", "T", "", "Specify the intent you wanted")
-
-	cmdText.MarkPersistentFlagRequired("text")
-
-	cmdDialogFlow.AddCommand(cmdText)
-	cmdDialogFlow.AddCommand(cmdDeleteAllContexts)
-
-	cmdDialogFlow.MarkPersistentFlagRequired("client")
-
-	rootCmd.AddCommand(cmdDialogFlow)
 	rootCmd.AddCommand(cmdRegistration)
 }
 

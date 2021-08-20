@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"encoding/xml"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -117,7 +118,7 @@ func findAnswersByWorkflow(flag *Flag, objectArray []gjson.Result) []gjson.Resul
 }
 
 func prepareTestData(flag *Flag, delete chan<- bool) {
-	logger.Info("Perparing test data...")
+	logger.Info("Preparing test data...")
 	clientData := readJSONFile(createFilePath([]string{flag.Client, ".json"}))
 	client := strings.Split(flag.Client, "_")
 	configData := readJSONFile(createFilePath([]string{client[0], "_config.json"}))
@@ -137,7 +138,7 @@ func prepareTestData(flag *Flag, delete chan<- bool) {
 	testData.URL = ConcatString([]string{url, questionMark, queryString.Str})
 	answers := findAnswersByWorkflow(flag, gjson.GetBytes(clientData, "answers").Array())
 	if answers == nil {
-		logger.Error("Inexistent workflow")
+		logger.Error(fmt.Sprintf("workflow %s not exist", flag.Workflow))
 		os.Exit(1)
 	}
 	testData.answers = translationContextMapping(flag, answers, configData)
@@ -249,6 +250,7 @@ func displayResult(resChan <-chan *grequests.Response) {
 			response.ClearInternalBuffer()
 			if xmlMediaResponse.Message.Body == "" {
 				logger.ShowQuestion("Empty message")
+				os.Exit(1)
 			} else {
 				logger.ShowQuestion(xmlMediaResponse.Message.Body)
 			}

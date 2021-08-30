@@ -96,9 +96,10 @@ var cmdRegistration = &cobra.Command{
 		start := make(chan bool)
 		delete := make(chan bool)
 		done := make(chan bool)
+		resChan := make(chan *grequests.Response)
+
 		go prepareTestData(&twilioFlag, delete)
 		go deleteSession(delete, start, done)
-		resChan := make(chan *grequests.Response)
 		go startTestProcess(resChan, done, start)
 		go displayResult(resChan)
 		<-done

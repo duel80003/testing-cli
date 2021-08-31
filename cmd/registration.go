@@ -207,7 +207,8 @@ func startTestProcess(resChan chan<- *grequests.Response, done chan<- bool, test
 	defer close(resChan)
 	defer close(done)
 	for testData := range testDataChan {
-		if t := &testData; t != nil {
+		if t := &testData; t == nil {
+			done <- false
 			break
 		}
 		logger.Info("Start testing...")

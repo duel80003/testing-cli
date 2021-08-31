@@ -1,6 +1,6 @@
 Pre-require
 
-golang 1.16+
+golang 1.15+
 
 install and build 
 

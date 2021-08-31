@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -44,7 +45,7 @@ func (t *TestData) makeSMSRequest(answer string) (*grequests.Response, error) {
 	requestBody := &grequests.RequestOptions{
 		JSON: t.smsRequestBody(answer),
 	}
-	return grequests.Post(testData.URL, requestBody)
+	return grequests.Post(t.URL, requestBody)
 }
 
 func (t *TestData) makeMMSRequest() (*grequests.Response, error) {
@@ -52,7 +53,7 @@ func (t *TestData) makeMMSRequest() (*grequests.Response, error) {
 	requestBody := &grequests.RequestOptions{
 		JSON: t.mmsRequestBody(),
 	}
-	return grequests.Post(testData.URL, requestBody)
+	return grequests.Post(t.URL, requestBody)
 }
 
 func (t *TestData) mmsRequestBody() map[string]string {
@@ -81,8 +82,6 @@ type mediaXML struct {
 	Media []string `xml:"Media"`
 }
 
-var testData TestData
-
 var cmdRegistration = &cobra.Command{
 	Use:   "regis",
 	Short: "Test SMS registration flow",
@@ -93,17 +92,30 @@ var cmdRegistration = &cobra.Command{
 		logger.Info(ConcatString([]string{"Workflow: ", twilioFlag.Workflow}))
 		logger.Info(ConcatString([]string{"Language: ", twilioFlag.Language}))
 		logger.Info(ConcatString([]string{"Country: ", twilioFlag.Country}))
-		start := make(chan bool)
-		delete := make(chan bool)
+
+		_, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		testDataChan := make(chan TestData)
 		done := make(chan bool)
 		resChan := make(chan *grequests.Response)
 
-		go prepareTestData(&twilioFlag, delete)
-		go deleteSession(delete, start, done)
-		go startTestProcess(resChan, done, start)
+		// start goroutines for processing of test and print content of twilio-api response
+		go startTestProcess(resChan, done, testDataChan)
 		go displayResult(resChan)
-		<-done
-		logger.Info("Test End")
+
+		// parse original data to specified format
+		testData := prepareTestData(&twilioFlag)
+
+		// delete existing session
+		deleteSession(&testData)
+		testDataChan <- testData
+
+		if <-done {
+			logger.Info("Test End")
+		} else {
+			logger.Info("Test Failure")
+		}
 	},
 }
 
@@ -118,7 +130,7 @@ func findAnswersByWorkflow(flag *Flag, objectArray []gjson.Result) []gjson.Resul
 	return nil
 }
 
-func prepareTestData(flag *Flag, delete chan<- bool) {
+func prepareTestData(flag *Flag) (testData TestData) {
 	logger.Info("Preparing test data...")
 	clientData := readJSONFile(createFilePath([]string{flag.Client, ".json"}))
 	client := strings.Split(flag.Client, "_")
@@ -143,43 +155,33 @@ func prepareTestData(flag *Flag, delete chan<- bool) {
 		os.Exit(1)
 	}
 	testData.answers = translationContextMapping(flag, answers, configData)
-	delete <- true
-	close(delete)
+	return testData
 }
 
-func deleteSession(delete <-chan bool, start chan<- bool, done chan<- bool) {
-	for val := range delete {
-		if val {
-			json, _ := json.Marshal(map[string]string{
-				"userId": testData.From,
-			})
-			url := testData.BaseURL + "/delete-session"
-			logger.Info("Delete session url: " + url)
-			requestBody := &grequests.RequestOptions{
-				JSON: json,
-			}
-			res, err := grequests.Delete(url, requestBody)
-			if err != nil {
-				logger.Error(url + "is unavailable")
-			}
-			type deleteRes struct {
-				Message string `json:"message"`
-			}
-			d := &deleteRes{}
-			res.JSON(d)
-			s := res.StatusCode
-			if s == 200 {
-				logger.Info("Delete session response: " + d.Message)
-				start <- true
-				close(start)
-			} else {
-				logger.Info("Delete session err: " + d.Message)
-				done <- false
-				close(start)
-				close(done)
-			}
+func deleteSession(testData *TestData) {
+	if testData != nil {
+		json, _ := json.Marshal(map[string]string{
+			"userId": testData.From,
+		})
+		url := testData.BaseURL + "/delete-session"
+		logger.Info("Delete session url: " + url)
+		requestBody := &grequests.RequestOptions{
+			JSON: json,
+		}
+		res, err := grequests.Delete(url, requestBody)
+		if err != nil {
+			logger.Error(url + "is unavailable")
+		}
+		type deleteRes struct {
+			Message string `json:"message"`
+		}
+		d := &deleteRes{}
+		res.JSON(d)
+		s := res.StatusCode
+		if s == 200 {
+			logger.Info("Delete session response: " + d.Message)
 		} else {
-			break
+			logger.Info("Delete session err: " + d.Message)
 		}
 	}
 }
@@ -201,39 +203,36 @@ func translationContextMapping(flag *Flag, answers []gjson.Result, configData []
 	return result
 }
 
-func startTestProcess(resChan chan<- *grequests.Response, done chan<- bool, start <-chan bool) {
-	for s := range start {
-		if s {
-			logger.Info("Start testing...")
-			logger.Divider()
-			var printHTTPError = func(err error) {
-				logger.Error("Http post error")
-				logger.Print(err)
-			}
-			for _, v := range testData.answers {
-				if v == image {
-					response, err := testData.makeMMSRequest()
-					if err != nil {
-						printHTTPError(err)
-					}
-					resChan <- response
-				} else {
-					response, err := testData.makeSMSRequest(v)
-					if err != nil {
-						printHTTPError(err)
-					}
-					resChan <- response
-				}
-				time.Sleep(time.Duration(testData.RequestInterval) * time.Millisecond)
-			}
-			done <- true
-			close(resChan)
-			close(done)
-		} else {
-			done <- false
-			close(done)
+func startTestProcess(resChan chan<- *grequests.Response, done chan<- bool, testDataChan <-chan TestData) {
+	defer close(resChan)
+	defer close(done)
+	for testData := range testDataChan {
+		if t := &testData; t != nil {
 			break
 		}
+		logger.Info("Start testing...")
+		logger.Divider()
+		var printHTTPError = func(err error) {
+			logger.Error("Http post error")
+			logger.Print(err)
+		}
+		for _, v := range testData.answers {
+			if v == image {
+				response, err := testData.makeMMSRequest()
+				if err != nil {
+					printHTTPError(err)
+				}
+				resChan <- response
+			} else {
+				response, err := testData.makeSMSRequest(v)
+				if err != nil {
+					printHTTPError(err)
+				}
+				resChan <- response
+			}
+			time.Sleep(time.Duration(testData.RequestInterval) * time.Millisecond)
+		}
+		done <- true
 	}
 }
 
@@ -242,10 +241,7 @@ func displayResult(resChan <-chan *grequests.Response) {
 		xmlResponse := &xmlResponse{}
 		bytes := response.Bytes()
 		response.XML(xmlResponse, nil)
-
-		if xmlResponse.Message != "" {
-			logger.ShowQuestion(xmlResponse.Message)
-		} else {
+		if xmlResponse.Message == "" {
 			xmlMediaResponse := &xmlMediaResponse{}
 			_ = xml.Unmarshal(bytes, &xmlMediaResponse)
 			response.ClearInternalBuffer()
@@ -260,6 +256,8 @@ func displayResult(resChan <-chan *grequests.Response) {
 				magenta := logger.ColorInstance("magenta")
 				magenta.Printf("%-18s%s \n", "Media URL:", yellow(url))
 			}
+		} else {
+			logger.ShowQuestion(xmlResponse.Message)
 		}
 		response.Close()
 		logger.Divider()
